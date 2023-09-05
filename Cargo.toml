@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 async-native-tls = { version = "0.5.0", default-features = false, features = ["runtime-tokio"] }
+base64 = "0.21.3"
 bytes = "1.4.0"
 comparable = { version = "0.5.4", features = ["derive"] }
 futures-util = "0.3.28"

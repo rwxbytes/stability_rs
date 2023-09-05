@@ -10,7 +10,7 @@ pub use hyper::{
 };
 pub use serde::{Deserialize, Serialize};
 use std::env;
-use tokio::{
+pub use tokio::{
     io::{AsyncWriteExt, BufWriter},
     net::TcpStream,
 };
