@@ -66,13 +66,13 @@ mod tests {
     }
 
     #[test]
-    fn style_preset_is_erring_when_not_set() {
+    fn tti_build_is_erring_when_style_preset_is_not_set() {
         let image = TextToImageBuilder::new().build().unwrap_err();
         assert_eq!(image.to_string(), "a style preset must be set");
     }
 
     #[test]
-    fn text_prompt_is_erring_when_empty() {
+    fn tti_build_is_erring_when_textprompt_is_empty() {
         let image = TextToImageBuilder::new()
             .style_preset(StylePreset::DigitalArt)
             .unwrap()
@@ -144,6 +144,38 @@ pub mod text_to_img {
             Ok(json)
         }
 
+        /// Generate an image from the text-to-image endpoint
+        /// with accept header set to application/json
+        ///
+        /// # Example
+        ///
+        /// ```no_run
+        /// use stability_rs::{text_to_img::*, Result};
+        ///
+        ///#[tokio::main]
+        ///async fn main() -> Result<()> {
+        ///    let image = TextToImageBuilder::new()
+        ///        .height(1024)?
+        ///        .width(1024)?
+        ///        .cfg_scale(27)?
+        ///        .clip_guidance_preset(ClipGuidancePreset::FastBlue)?
+        ///        .sampler(Sampler::KDpmpp2sAncestral)?
+        ///        .samples(2)?
+        ///        .seed(0)?
+        ///        .steps(75)?
+        ///        .style_preset(StylePreset::DigitalArt)?
+        ///        .text_prompt("A scholar tired at his desk, a raven on a bust", 1.0)?
+        ///        .build()?;
+        ///
+        ///    let resp = image.generate("stable-diffusion-xl-1024-v1-0").await?;
+        ///
+        ///    for (i, image) in resp.artifacts.iter().enumerate() {
+        ///        let _ = image.save(&format!("image_{}.png", i)).await?;
+        ///    }
+        ///
+        ///    Ok(())
+        ///}
+        /// ```
         pub async fn generate(self, engine: &str) -> Result<TextToImageResponse> {
             let cb = ClientBuilder::new()?;
             let c = cb
@@ -165,6 +197,60 @@ pub mod text_to_img {
             let text_to_img = serde_json::from_slice::<TextToImageResponse>(&resp.as_ref())?;
 
             Ok(text_to_img)
+        }
+
+        /// Generate an image from the text-to-image endpoint
+        /// with accept header set to image/png
+        ///
+        /// # Example
+        ///
+        /// ```no_run
+        ///use stability_rs::{text_to_img::*, Result};
+        ///use tokio::{fs::File, io::AsyncWriteExt};
+        ///
+        ///#[tokio::main]
+        ///async fn main() -> Result<()> {
+        ///    let image = TextToImageBuilder::new()
+        ///        .height(1024)?
+        ///        .width(1024)?
+        ///        .cfg_scale(33)?
+        ///        .clip_guidance_preset(ClipGuidancePreset::FastGreen)?
+        ///        .sampler(Sampler::KLms)?
+        ///        .samples(1)?
+        ///        .seed(0)?
+        ///        .steps(75)?
+        ///        .style_preset(StylePreset::Photographic)?
+        ///        .text_prompt("A crab on the moon surrounded by many stars", 1.0)?
+        ///        .build()?;
+        ///
+        ///    let bytes = image.generate_once("stable-diffusion-xl-1024-v1-0").await?;
+        ///
+        ///    let mut f = File::create("crab.png").await?;
+        ///    f.write_all(&bytes).await?;
+        ///
+        ///    Ok(())
+        ///}
+        /// ```
+
+        pub async fn generate_once(self, engine: &str) -> Result<Bytes> {
+            let cb = ClientBuilder::new()?;
+            let c = cb
+                .method(POST)?
+                .path(&format!(
+                    "{}/{}{}",
+                    GENERATION_PATH,
+                    engine.to_lowercase(),
+                    TEXT_TO_IMAGE_PATH,
+                ))?
+                .header(ACCEPT, IMAGE_PNG)?
+                .header(CONTENT_TYPE, APPLICATION_JSON)?
+                .build()?;
+
+            let resp = c
+                .send_request(Full::<Bytes>::new(self.to_json()?.into()))
+                .await?;
+
+            Ok(resp)
         }
     }
 
@@ -381,7 +467,7 @@ pub mod text_to_img {
         KEAncestral,
         #[serde(rename = "K_HEUN")]
         KHeun,
-        #[serde(rename = "K_HEUN_ANCESTRAL")]
+        #[serde(rename = "K_LMS")]
         KLms,
         None,
     }
