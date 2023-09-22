@@ -13,7 +13,7 @@ pub enum Error {
 }
 
 #[derive(thiserror::Error, Debug)]
-pub enum TextToImageBuilderError {
+pub enum ImageBuilderError {
     #[error("height must be a multiple of 64, but was {0}")]
     HeightNotMultipleOf64(u32),
     #[error("height must not be less than 128, but was {0}")]
@@ -32,4 +32,8 @@ pub enum TextToImageBuilderError {
     StylePresetNotSet,
     #[error("a text prompt must not be empty")]
     TextPromptEmpty,
+    #[error("failed to read init image: {0}")]
+    InitImageReadError(String),
+    #[error("init image path must be set")]
+    InitImagePathNotSet,
 }
