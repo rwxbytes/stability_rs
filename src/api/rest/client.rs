@@ -1,4 +1,4 @@
-use crate::error::Error;
+use crate::error::{ApiResponseError, Error};
 use crate::prelude::*;
 use crate::support::*;
 pub use http_body_util::{BodyExt, Empty, Full};
@@ -79,7 +79,7 @@ impl Client {
                 writer.flush().await?;
             }
 
-            let err_value = serde_json::from_slice::<serde_json::Value>(&writer.into_inner())?;
+            let err_value = serde_json::from_slice::<ApiResponseError>(&writer.into_inner())?;
 
             return Err(Box::new(Error::ClientSendRequestError(err_value)));
         }

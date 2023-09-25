@@ -1,10 +1,21 @@
     use super::*;
-    use std::fs::File;
-    use std::{fmt, io};
-    use std::io::{Read, Write};
-    use rand::Rng;
 
-    const IMAGE_TO_IMAGE_PATH: &str = "/image-to-image";
+    pub const IMAGE_TO_IMAGE_PATH: &str = "/image-to-image";
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        #[test]
+        fn image_builder_is_erring_when_init_image_path_is_not_set() {
+            let image = ImageToImageBuilder::new().build().unwrap_err();
+            assert_eq!(
+                image.to_string(),
+                "init image path must be set"
+            );
+
+        }
+    }
 
     #[derive(Debug, Serialize)]
     pub struct ImageToImage {
@@ -294,6 +305,12 @@
         pub fn steps(mut self, steps: u32) -> Result<Self> {
             if steps > 150 {
                 return Err(Box::new(ImageBuilderError::StepsGreaterThan150(
+                    steps,
+                )));
+            }
+
+            if steps < 10 {
+                return Err(Box::new(ImageBuilderError::StepsLessThan10(
                     steps,
                 )));
             }

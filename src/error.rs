@@ -1,15 +1,26 @@
-use serde_json::Value;
+use std::fmt;
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize)]
+pub struct ApiResponseError {
+    pub id: String,
+    pub name: String,
+    pub message: String,
+
+}
+
+impl fmt::Display for ApiResponseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "id: {}, name: {}, message: {}", self.id, self.name, self.message)
+    }
+}
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    #[error("Invalid API response: {0}")]
-    InvalidApiResponse(String),
     #[error("Client build error: {0}")]
     ClientBuildError(String),
-    #[error("ClientSendRequestError: {0}")]
-    ClientSendRequestError(Value),
-    #[error("TextToImageBuildError: {0}")]
-    TextToImageBuildError(String),
+    #[error("{:?}", .0)]
+    ClientSendRequestError(ApiResponseError),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -28,6 +39,8 @@ pub enum ImageBuilderError {
     SamplesGreaterThan10(u32),
     #[error("steps must be no greater than 150, but was {0}")]
     StepsGreaterThan150(u32),
+    #[error("steps must be no less than 10, but was {0}")]
+    StepsLessThan10(u32),
     #[error("a style preset must be set")]
     StylePresetNotSet,
     #[error("a text prompt must not be empty")]
@@ -36,4 +49,12 @@ pub enum ImageBuilderError {
     InitImageReadError(String),
     #[error("init image path must be set")]
     InitImagePathNotSet,
+    #[error("upscale height must be greater or equal to 512, but was {0}")]
+    UpscaleHeightLessThan512(u32),
+    #[error("upscale width must be greater or equal to 512, but was {0}")]
+    UpscaleWidthLessThan512(u32),
+    #[error("upscale image path must be set")]
+    UpscaleImagePathNotSet,
+    #[error("only one of width or height may be specified")]
+    UpscaleWidthHeightConflict,
 }

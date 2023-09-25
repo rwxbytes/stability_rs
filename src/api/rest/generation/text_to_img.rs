@@ -5,7 +5,93 @@ use serde::{Deserialize, Serialize};
 
 const TEXT_TO_IMAGE_PATH: &str = "/text-to-image";
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::text_to_img::*;
 
+
+    #[test]
+    fn height_is_erring_when_not_a_multiple_of_64() {
+        let image = TextToImageBuilder::new().height(1023).unwrap_err();
+        assert_eq!(
+            image.to_string(),
+            "height must be a multiple of 64, but was 1023"
+        );
+    }
+
+    #[test]
+    fn height_is_erring_when_less_than_128() {
+        let image = TextToImageBuilder::new().height(64).unwrap_err();
+        assert_eq!(
+            image.to_string(),
+            "height must not be less than 128, but was 64"
+        );
+    }
+
+    #[test]
+    fn width_is_erring_when_not_a_multiple_of_64() {
+        let image = TextToImageBuilder::new().width(1023).unwrap_err();
+        assert_eq!(
+            image.to_string(),
+            "width must be a multiple of 64, but was 1023"
+        );
+    }
+
+    #[test]
+    fn width_is_erring_when_less_than_128() {
+        let image = TextToImageBuilder::new().width(64).unwrap_err();
+        assert_eq!(
+            image.to_string(),
+            "width must not be less than 128, but was 64"
+        );
+    }
+
+    #[test]
+    fn cfg_scale_is_erring_when_greater_than_35() {
+        let image = TextToImageBuilder::new().cfg_scale(36).unwrap_err();
+        assert_eq!(
+            image.to_string(),
+            "cfg_scale must be no greater than 35, but was 36"
+        );
+    }
+
+    #[test]
+    fn samples_is_erring_when_greater_than_10() {
+        let image = TextToImageBuilder::new().samples(11).unwrap_err();
+        assert_eq!(
+            image.to_string(),
+            "samples must be no greater than 10, but was 11"
+        );
+    }
+
+    #[test]
+    fn steps_is_erring_when_greater_than_150() {
+        let image = TextToImageBuilder::new().steps(151).unwrap_err();
+        assert_eq!(
+            image.to_string(),
+            "steps must be no greater than 150, but was 151"
+        );
+    }
+
+    #[test]
+    fn tti_build_is_erring_when_style_preset_is_not_set() {
+        let image = TextToImageBuilder::new().build().unwrap_err();
+        assert_eq!(image.to_string(), "a style preset must be set");
+    }
+
+    #[test]
+    fn tti_build_is_erring_when_textprompt_is_empty() {
+        let image = TextToImageBuilder::new()
+            .style_preset(StylePreset::DigitalArt)
+            .unwrap()
+            .text_prompt("", 1.0)
+            .unwrap()
+            .build()
+            .unwrap_err();
+        assert_eq!(image.to_string(), "a text prompt must not be empty");
+    }
+}
 
 #[derive(Debug, Serialize)]
 pub struct TextToImage {
@@ -247,6 +333,12 @@ impl TextToImageBuilder {
     pub fn steps(mut self, steps: u32) -> Result<Self> {
         if steps > 150 {
             return Err(Box::new(ImageBuilderError::StepsGreaterThan150(
+                steps,
+            )));
+        }
+
+        if steps < 10 {
+            return Err(Box::new(ImageBuilderError::StepsLessThan10(
                 steps,
             )));
         }
