@@ -2,8 +2,13 @@
 name = "stability_rs"
 version = "0.1.0"
 edition = "2021"
+description = "A Rust library for the Stability API"
+authors = ["rwxbytes <rwxbytes@proton.me>"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/rwxbytes/stability_rs"
+keywords = ["stability", "stable-diffusion", "txt2img", "ai", "img2img"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 async-native-tls = { version = "0.5.0", default-features = false, features = ["runtime-tokio"] }
@@ -21,4 +26,3 @@ serde_bytes = "0.11.12"
 serde_json = "1.0.105"
 thiserror = "1.0.47"
 tokio = { version = "1.32.0", features = ["full"] }
-log = "0.4.20"

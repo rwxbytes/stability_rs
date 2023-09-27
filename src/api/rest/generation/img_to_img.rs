@@ -81,7 +81,7 @@
         ///    let resp = image.generate("stable-diffusion-xl-1024-v1-0").await?;
         ///
         ///    for (i, img) in resp.artifacts.iter().enumerate() {
-        ///        let _ = img.save(&format!("new_init_image_{}.png", i)).await?;
+        ///        let _ = img.save(&format!("new_image_{}.png", i)).await?;
         ///    }
         ///
         ///    Ok(())
