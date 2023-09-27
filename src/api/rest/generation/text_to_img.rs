@@ -242,6 +242,7 @@ pub struct TextToImageBuilder {
 }
 
 impl TextToImageBuilder {
+
     pub fn new() -> Self {
         Self::default()
     }

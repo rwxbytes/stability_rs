@@ -89,12 +89,8 @@
         /// ```
 
         pub async fn generate(self, engine: &str) -> Result<ImageResponse> {
-            let boundary = format!(
-                "-----------------------------{}",
-                rand::thread_rng().gen::<u64>()
-            );
 
-            let data = self.to_multipart_form_data(&boundary)?;
+            let data = self.to_multipart_form_data()?;
 
 
             let cb = ClientBuilder::new()?;
@@ -107,11 +103,11 @@
                     IMAGE_TO_IMAGE_PATH
                 ))?
                 .header(ACCEPT, APPLICATION_JSON)?
-                .header(CONTENT_TYPE, &format!("{}{}", MULTIPART_FORM_DATA_BOUNDARY, boundary))?
+                .header(CONTENT_TYPE, &format!("{}{}", MULTIPART_FORM_DATA_BOUNDARY, data.boundary))?
                 .build()?;
 
             let resp = c
-                .send_request(Full::<Bytes>::new(data.into()))
+                .send_request(Full::<Bytes>::new(data.body.into()))
                 .await?;
 
             let img_to_img = serde_json::from_slice::<ImageResponse>(&resp.as_ref())?;
@@ -120,110 +116,51 @@
         }
 
 
-        fn to_multipart_form_data(&self, boundary: &str) -> io::Result<Vec<u8>> {
-            let mut data = Vec::new();
+        fn to_multipart_form_data(&self) -> io::Result<MultipartFormData> {
+            let mut multipart_form_data = MultipartFormData::new();
 
             for (i, prompts) in self.text_prompts.iter().enumerate() {
-                write!(data, "--{}\r\n", boundary)?;
-                write!(
-                    data,
-                    "Content-Disposition: form-data; name=\"text_prompts[{}][text]\"\r\n\r\n{}\r\n",
-                    i, prompts.text
+                multipart_form_data.add_text(
+                    &format!("text_prompts[{}][text]", i),
+                    &prompts.text,
                 )?;
-
-                write!(data, "--{}\r\n", boundary)?;
-                write!(
-                    data,
-                    "Content-Disposition: form-data; name=\"text_prompts[{}][weight]\"\r\n\r\n{}\r\n",
-                    i, prompts.weight
+                multipart_form_data.add_text(
+                    &format!("text_prompts[{}][weight]", i),
+                    &prompts.weight.to_string(),
                 )?;
             }
 
-            write!(data, "--{}\r\n", boundary)?;
-            write!(
-                data,
-                "Content-Disposition: form-data; name=\"init_image_mode\"\r\n\r\n{}\r\n",
-                &self.init_image_mode.to_string().to_ascii_uppercase()
-            )?;
+            multipart_form_data.add_text("init_image_mode", &self.init_image_mode.to_string().to_ascii_uppercase())?;
 
             if self.init_image_mode == ImageMode::ImageStrength {
-                write!(data, "--{}\r\n", boundary)?;
-                write!(
-                    data,
-                    "Content-Disposition: form-data; name=\"image_strength\"\r\n\r\n{}\r\n",
-                    &self.image_strength
-                )?;
+                multipart_form_data.add_text("image_strength", &self.image_strength.to_string())?;
             }
 
-            write!(data, "--{}\r\n", boundary)?;
-            write!(
-                data,
-                "Content-Disposition: form-data; name=\"cfg_scale\"\r\n\r\n{}\r\n",
-                &self.cfg_scale
-            )?;
-
-            write!(data, "--{}\r\n", boundary)?;
-            write!(
-                data,
-                "Content-Disposition: form-data; name=\"samples\"\r\n\r\n{}\r\n",
-                &self.samples
-            )?;
-
-            write!(data, "--{}\r\n", boundary)?;
-            write!(
-                data,
-                "Content-Disposition: form-data; name=\"steps\"\r\n\r\n{}\r\n",
-                &self.steps
-            )?;
+            multipart_form_data.add_text("cfg_scale", &self.cfg_scale.to_string())?;
+            multipart_form_data.add_text("samples", &self.samples.to_string())?;
+            multipart_form_data.add_text("steps", &self.steps.to_string())?;
 
             if self.sampler != Sampler::None {
-                write!(data, "--{}\r\n", boundary)?;
-                write!(
-                    data,
-                    "Content-Disposition: form-data; name=\"sampler\"\r\n\r\n{}\r\n",
-                    &self.sampler.to_string().to_ascii_uppercase()
-                )?;
+                multipart_form_data.add_text("sampler", &self.sampler.to_string().to_ascii_uppercase())?;
             }
 
-
-            write!(data, "--{}\r\n", boundary)?;
-            write!(
-                data,
-                "Content-Disposition: form-data; name=\"clip_guidance_preset\"\r\n\r\n{}\r\n",
-                &self.clip_guidance_preset.to_string().to_ascii_uppercase()
+            multipart_form_data.add_text(
+                "clip_guidance_preset",
+                &self.clip_guidance_preset.to_string().to_ascii_uppercase(),
             )?;
 
-            write!(data, "--{}\r\n", boundary)?;
-            write!(
-                data,
-                "Content-Disposition: form-data; name=\"style_preset\"\r\n\r\n{}\r\n",
-                &self.style_preset.to_string()
-            )?;
+            multipart_form_data.add_text("style_preset", &self.style_preset.to_string())?;
+            multipart_form_data.add_text("seed", &self.seed.to_string())?;
 
-            write!(data, "--{}\r\n", boundary)?;
-            write!(
-                data,
-                "Content-Disposition: form-data; name=\"seed\"\r\n\r\n{}\r\n",
-                &self.seed
-            )?;
+            multipart_form_data.add_file("init_image", &self.init_image)?;
 
-            write!(data, "--{}\r\n", boundary)?;
-            write!(
-                data,
-                "Content-Disposition: form-data; name=\"init_image\"; filename=\"{}\"\r\n",
-                self.init_image
-            )?;
-            write!(data, "Content-Type: image/png\r\n\r\n")?;
+            for (k, v) in &self.extras {
+                multipart_form_data.add_text(k, v)?;
+            }
 
-            let mut f = File::open(&self.init_image)?;
-            f.read_to_end(&mut data)?;
+            multipart_form_data.end_body()?;
 
-            write!(data, "\r\n")?;
-
-
-            write!(data, "--{}--\r\n", boundary)?;
-
-            Ok(data)
+            Ok(multipart_form_data)
         }
     }
 
@@ -244,6 +181,7 @@
     }
 
     impl ImageToImageBuilder {
+
         pub fn new() -> Self {
             Self::default()
         }

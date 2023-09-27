@@ -43,12 +43,8 @@ impl Upscaler {
     /// }
     /// ```
     pub async fn generate(self, engine: UpscaleEngine) -> Result<ImageResponse> {
-        let boundary = format!(
-            "-----------------------------{}",
-            rand::thread_rng().gen::<u64>()
-        );
 
-        let data = self.to_multipart_form_data(&boundary, engine.clone())?;
+        let data = self.to_multipart_form_data(engine.clone())?;
 
 
         let cb = ClientBuilder::new()?;
@@ -62,11 +58,11 @@ impl Upscaler {
                 UPSCALE_PATH
             ))?
             .header(ACCEPT, APPLICATION_JSON)?
-            .header(CONTENT_TYPE, &format!("{}{}", MULTIPART_FORM_DATA_BOUNDARY, boundary))?
+            .header(CONTENT_TYPE, &format!("{}{}", MULTIPART_FORM_DATA_BOUNDARY, data.boundary))?
             .build()?;
 
         let resp = c
-            .send_request(Full::<Bytes>::new(data.into()))
+            .send_request(Full::<Bytes>::new(data.body.into()))
             .await?;
 
         let upscaled_img = serde_json::from_slice::<ImageResponse>(&resp.as_ref())?;
@@ -74,96 +70,48 @@ impl Upscaler {
         Ok(upscaled_img)
     }
 
-    fn to_multipart_form_data(&self, boundary: &str, engine: UpscaleEngine) -> io::Result<Vec<u8>> {
-        let mut data = Vec::new();
+    fn to_multipart_form_data(&self, engine: UpscaleEngine) -> io::Result<MultipartFormData> {
+        let mut multipart_form_data = MultipartFormData::new();
 
         if engine == UpscaleEngine::StableDiffusionX4LatentUpscaler {
             for (i, prompts) in self.text_prompts.iter().enumerate() {
-                write!(data, "--{}\r\n", boundary)?;
-                write!(
-                    data,
-                    "Content-Disposition: form-data; name=\"text_prompts[{}][text]\"\r\n\r\n{}\r\n",
-                    i, prompts.text
-                )?;
-
-                write!(data, "--{}\r\n", boundary)?;
-                write!(
-                    data,
-                    "Content-Disposition: form-data; name=\"text_prompts[{}][weight]\"\r\n\r\n{}\r\n",
-                    i, prompts.weight
-                )?;
+                multipart_form_data.add_text(
+                    &format!("text_prompts[{}][text]", i),
+                    &prompts.text.clone(),
+                );
+                multipart_form_data.add_text(
+                    &format!("text_prompts[{}][weight]", i),
+                    &prompts.weight.to_string(),
+                );
             }
         }
 
         if self.height != 0 {
-            write!(data, "--{}\r\n", boundary)?;
-            write!(
-                data,
-                "Content-Disposition: form-data; name=\"height\"\r\n\r\n{}\r\n",
-                &self.height
-            )?;
+            multipart_form_data.add_text("height", &self.height.to_string());
         }
 
         if self.width != 0 {
-            write!(data, "--{}\r\n", boundary)?;
-            write!(
-                data,
-                "Content-Disposition: form-data; name=\"width\"\r\n\r\n{}\r\n",
-                &self.width
-            )?;
+            multipart_form_data.add_text("width", &self.width.to_string());
         }
 
         if engine == UpscaleEngine::StableDiffusionX4LatentUpscaler {
-            write!(data, "--{}\r\n", boundary)?;
-            write!(
-                data,
-                "Content-Disposition: form-data; name=\"cfg_scale\"\r\n\r\n{}\r\n",
-                &self.cfg_scale
-            )?;
+            multipart_form_data.add_text("cfg_scale", &self.cfg_scale.to_string());
         }
-
 
         if engine == UpscaleEngine::StableDiffusionX4LatentUpscaler {
-            write!(data, "--{}\r\n", boundary)?;
-            write!(
-                data,
-                "Content-Disposition: form-data; name=\"steps\"\r\n\r\n{}\r\n",
-                &self.steps
-            )?;
+            multipart_form_data.add_text("steps", &self.steps.to_string());
         }
-
-
-
 
         if engine == UpscaleEngine::StableDiffusionX4LatentUpscaler {
-            write!(data, "--{}\r\n", boundary)?;
-            write!(
-                data,
-                "Content-Disposition: form-data; name=\"seed\"\r\n\r\n{}\r\n",
-                &self.seed
-            )?;
+            multipart_form_data.add_text("seed", &self.seed.to_string());
         }
 
-        write!(data, "--{}\r\n", boundary)?;
-        write!(
-            data,
-            "Content-Disposition: form-data; name=\"image\"; filename=\"{}\"\r\n",
-            self.image
-        )?;
-        write!(data, "Content-Type: image/png\r\n\r\n")?;
+        multipart_form_data.add_file("image", &self.image)?;
 
-        let mut f = File::open(&self.image)?;
-        f.read_to_end(&mut data)?;
+        multipart_form_data.end_body();
 
-        write!(data, "\r\n")?;
-
-
-        write!(data, "--{}--\r\n", boundary)?;
-
-        Ok(data)
+        Ok(multipart_form_data)
     }
-
-
 }
 
 #[derive(Debug, Default,)]

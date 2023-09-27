@@ -57,4 +57,8 @@ pub enum ImageBuilderError {
     UpscaleImagePathNotSet,
     #[error("only one of width or height may be specified")]
     UpscaleWidthHeightConflict,
+    #[error("a mask source must be set")]
+    MaskSourceNotSet,
+    #[error("mask image path must be set when using a black or white mask source")]
+    MaskImagePathNotSet,
 }
